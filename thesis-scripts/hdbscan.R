@@ -95,7 +95,8 @@ MIN_PTS = c(3,5,9)
 print("HDBSCAN, Euclidean distance")
 pb <- progress_bar$new(total = nrow(cdata_samples))
 results <- cdata_samples %>%
-  mutate(Eucl = map(Sample, ~ {
+  mutate(Eucl = map2(Sample, Seed, ~ { #
+    print(.y);
     pb$tick();
     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
     dist_obj <- dist(ds);
@@ -505,8 +506,9 @@ write_rds(results, here("thesis-scripts", "results", "hdbscan.rds"))
 # 
 # i = 535
 # ds <- cdata_samples$Sample[[i]]
+# ds <- (cdata_samples %>% filter(Num == 3 & Seed == "3040"))$Sample[[1]]
 # ds
-# ds <- ds %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein)
+# ds <- ds %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37)
 # dist_obj <- dist(ds)
 # d <- ncol(ds)
 # min_pts <- c(3, 5, 10)

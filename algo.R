@@ -117,8 +117,6 @@ run_hdbscan <- function(dist_obj, d, min_pts) {
   # Compute DBCV for each cut.
   single_cuts <- tibble(k = 2:(num_objs - 1)) %>%
     mutate(cut = map(k, ~ cutree(single_hier, k = .x))) %>%
-    mutate(num_cl = map_int(cut, ~ n_distinct(.x[.x != 0]))) %>%
-    filter(num_cl > 1) %>%
     mutate(val_index = map(cut, ~ get_dbcv(dissim_matr, d, .x))) %>%
     mutate(dbcv = map_dbl(val_index, ~ {
       if (is.null(.x)) {
@@ -199,9 +197,7 @@ run_hdbscan <- function(dist_obj, d, min_pts) {
   for (mod in hdbscan_mods) {
     eps_vals <- sort(mod$hc$height, decreasing = T) + .Machine$double.eps
     cuts <- tibble(min_pts = mod$minPts, eps = eps_vals) %>%
-      mutate(cut = map(eps, ~ cut_tree(mod$hc, .x, kNNdist(dist_obj, mod$minPts - 1)) %>% as.integer)) %>%
-      mutate(num_cl = map_int(cut, ~ n_distinct(.x[.x != 0]))) %>%
-      filter(num_cl > 1)
+      mutate(cut = map(eps, ~ cut_tree(mod$hc, .x, kNNdist(dist_obj, mod$minPts - 1)) %>% as.integer))
     hdbscan_cuts <- bind_rows(hdbscan_cuts, cuts)
   }
   

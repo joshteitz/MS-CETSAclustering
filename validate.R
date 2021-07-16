@@ -106,6 +106,12 @@ get_dbcv <- function(dissim_matr, d, lbls) {
     return(NULL)
   }
   
+  # If there is only one set within the partition, then cannot compute
+  # density separation. Therefore, return NULL
+  if (n_distinct(lbls) == 1) {
+    return(NULL)
+  }
+  
   # compute core distance of each object
   core_dists <- map_dbl(1:nrow(dissim_matr), ~ all_points_core_dist(.x, dissim_matr, d, lbls))
   
