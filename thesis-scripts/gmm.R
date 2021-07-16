@@ -104,7 +104,6 @@ results <- cdata_samples[1:5,] %>% #
     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
     run_gmms(ds, .y * 2)
   }))
-write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
 print("Compute silhouettes w.r.t Euclidean distance")
 pb <- progress_bar$new(total = nrow(results))
@@ -116,7 +115,6 @@ results <- results %>%
     dist_obj <- dist(ds);
     get_sils(lbls, dist_obj)
   }))
-write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
 print("Compute silhouettes w.r.t Parametric Euclidean distance")
 pb <- progress_bar$new(total = nrow(results))
@@ -129,7 +127,6 @@ results <- results %>%
     dist_obj <- dist(ds);
     get_sils(lbls, dist_obj)
   }))
-write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
 print("Compute silhouettes w.r.t Mahalanobis distance")
 pb <- progress_bar$new(total = nrow(results))
@@ -141,7 +138,6 @@ results <- results %>%
     sigmas <- .y$sigmas;
     get_sils_mahal(lbls, ds, sigmas)
   }))
-write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
 print("Compute silhouettes w.r.t. Parametric Mahalanobis distance")
 pb <- progress_bar$new(total = nrow(results))
@@ -154,7 +150,6 @@ results <- results %>%
     sigmas <- .y$sigmas;
     get_sils_mahal(lbls, ds, sigmas)
   }))
-write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
 print("Compute ARI for each dataset w.r.t. the ground truth")
 results <- results %>%
