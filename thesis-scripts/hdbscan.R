@@ -94,7 +94,7 @@ MIN_PTS = c(3,5,9)
 
 print("HDBSCAN, Euclidean distance")
 pb <- progress_bar$new(total = nrow(cdata_samples))
-results <- cdata_samples %>%
+results <- cdata_samples[1:15,] %>%
   mutate(Eucl = map(Sample, ~ {
     pb$tick();
     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
@@ -121,6 +121,7 @@ results <- results %>%
   mutate(Eucl_params = map(Sample, ~ {
     pb$tick();
     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
+    ds <- make_unit_var(ds, c(Param_b, Param_c, Param_e));
     dist_obj <- dist(ds);
     d <- ncol(ds);
     run_hdbscan(dist_obj, d, MIN_PTS)

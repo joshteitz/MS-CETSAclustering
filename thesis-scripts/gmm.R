@@ -92,7 +92,7 @@ set.seed(27)
 print("Fit GMMs to each dataset")
 pb <- progress_bar$new(total = nrow(cdata_samples))
 pb1 <- progress_bar$new(total = nrow(cdata_samples))
-results <- cdata_samples %>%
+results <- cdata_samples[1:5,] %>% #
   mutate(GMM = map2(Sample, Num, ~ {
     pb$tick();
     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
@@ -104,12 +104,10 @@ results <- cdata_samples %>%
     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
     run_gmms(ds, .y * 2)
   }))
+write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
-print("Compute silhouettes w.r.t Euclidean distance and Mahalanobis distance")
+print("Compute silhouettes w.r.t Euclidean distance")
 pb <- progress_bar$new(total = nrow(results))
-pb1 <- progress_bar$new(total = nrow(results))
-pb2 <- progress_bar$new(total = nrow(results))
-pb3 <- progress_bar$new(total = nrow(results))
 results <- results %>%
   mutate(Sils = map2(Sample, GMM, ~ {
     pb$tick();
@@ -117,30 +115,46 @@ results <- results %>%
     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
     dist_obj <- dist(ds);
     get_sils(lbls, dist_obj)
-  })) %>%
-  mutate(Sils_mahal = map2(Sample, GMM, ~{
-    pb1$tick();
-    lbls <- .y$cl;
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    sigmas <- .y$sigmas;
-    get_sils_mahal(lbls, ds, sigmas)
-  })) %>%
+  }))
+write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
+
+print("Compute silhouettes w.r.t Parametric Euclidean distance")
+pb <- progress_bar$new(total = nrow(results))
+results <- results %>%
   mutate(Sils_p = map2(Sample, GMM_p, ~ {
-    pb2$tick();
+    pb$tick();
     lbls <- .y$cl;
     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
     ds <- make_unit_var(ds, c(Param_b, Param_c, Param_e));
     dist_obj <- dist(ds);
     get_sils(lbls, dist_obj)
-  })) %>%
+  }))
+write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
+
+print("Compute silhouettes w.r.t Mahalanobis distance")
+pb <- progress_bar$new(total = nrow(results))
+results <- results %>%
+  mutate(Sils_mahal = map2(Sample, GMM, ~{
+    pb$tick();
+    lbls <- .y$cl;
+    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+    sigmas <- .y$sigmas;
+    get_sils_mahal(lbls, ds, sigmas)
+  }))
+write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
+
+print("Compute silhouettes w.r.t. Parametric Mahalanobis distance")
+pb <- progress_bar$new(total = nrow(results))
+results <- results %>%
   mutate(Sils_mahal_p = map2(Sample, GMM_p, ~{
-    pb3$tick();
+    pb$tick();
     lbls <- .y$cl;
     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
     ds <- make_unit_var(ds, c(Param_b, Param_c, Param_e));
     sigmas <- .y$sigmas;
     get_sils_mahal(lbls, ds, sigmas)
   }))
+write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
 print("Compute ARI for each dataset w.r.t. the ground truth")
 results <- results %>%
@@ -155,7 +169,7 @@ results <- results %>%
     adjustedRandIndex(gt, cl)
   }))
 
-write_rds(results, here("results", "gmm.rds"))
+write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
 # # For each sample, run GMMs.
 # pb <- progress_bar$new(total = nrow(cdata_samples))
