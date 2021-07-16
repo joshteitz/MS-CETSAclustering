@@ -92,7 +92,7 @@ set.seed(27)
 print("Fit GMMs to each dataset")
 pb <- progress_bar$new(total = nrow(cdata_samples))
 pb1 <- progress_bar$new(total = nrow(cdata_samples))
-results <- cdata_samples[1:5,] %>% #
+results <- cdata_samples %>%
   mutate(GMM = map2(Sample, Num, ~ {
     pb$tick();
     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
