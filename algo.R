@@ -107,60 +107,195 @@ run_gmms <- function(ds, max_num_cl) {
 
 run_hdbscan <- function(dist_obj, d, min_pts) {
   
-  hdb <- hdbscan(dist_obj, min_pts)
-  core_dist <- kNNdist(dist_obj, k = min_pts - 1)
-  dissim_matr <- dist_obj %>% as.matrix
+  dissim_matr <- as.matrix(dist_obj)
+  num_objs <- nrow(dissim_matr)
   
-  hdb_cl <- hdb$cluster
-  hdb_val_index <- get_dbcv(dissim_matr, d, hdb_cl)
-  if (is.null(hdb_val_index)) {
-    hdb_val_index <- NA
-    hdb_dbcv <- NA
-  } else {
-    hdb_dbcv <- sum( hdb_val_index$val * hdb_val_index$size_frac )
-  }
+  # Single linkage hierarchy
+  single_hier <-  hclust(dist_obj, method = "single")
   
-  fosc_cut <- NULL
-  fosc_cut$min_pts <- min_pts
-  fosc_cut$cl <- hdb_cl
-  fosc_cut$num_cl <- hdb_cl[hdb_cl != 0] %>% n_distinct
-  fosc_cut$val_index <- hdb_val_index
-  fosc_cut$dbcv <- hdb_dbcv
-  
-  eps_vals <- sort(hdb$hc$height, decreasing = T) + .Machine$double.eps
-  horiz_cuts <- tibble(Eps = eps_vals) %>%
-    mutate(Cut = map(Eps, ~ cut_tree(hdb$hc, .x, core_dist) %>% as.integer)) %>%
-    mutate(Num_cl = map_int(Cut, ~ n_distinct(.x[.x != 0]))) %>%
-    filter(Num_cl > 1)
-  horiz_cuts <- horiz_cuts %>%
-    mutate(Val_index = map(Cut, ~ get_dbcv(dissim_matr, d, .x))) %>%
-    mutate(DBCV = map_dbl(Val_index, ~ {
+  # Cuts from single linkage hierarchy.
+  # Compute DBCV for each cut.
+  single_cuts <- tibble(k = 2:(num_objs - 1)) %>%
+    mutate(cut = map(k, ~ cutree(single_hier, k = .x))) %>%
+    mutate(num_cl = map_int(cut, ~ n_distinct(.x[.x != 0]))) %>%
+    filter(num_cl > 1) %>%
+    mutate(val_index = map(cut, ~ get_dbcv(dissim_matr, d, .x))) %>%
+    mutate(dbcv = map_dbl(val_index, ~ {
       if (is.null(.x)) {
         NA
       } else {
-        sum(.x$val * .x$size_frac)
+        sum(.x$val * .x$size_frac) 
       }
     }))
   
-  opt_cut <- NULL
-  opt_cut$min_pts <- min_pts
-  # If all horizontal cuts cannot be evaluated by DBCV
-  if (all(map_lgl(horiz_cuts$DBCV, is.na))) {
-    opt_cut$cl <- NA
-    opt_cut$num_cl <- NA
-    opt_cut$val_index <- NA
-    opt_cut$dbcv <- NA
+  # Select cut with highest DBCV. 
+  opt1 <- single_cuts %>% slice_max(dbcv, with_ties = F)
+  
+  # Process optimal cut.
+  # Handle the case where DBCV could not be computed for any cut.
+  single_cut <- NULL
+  if(is.na(opt1$dbcv)) {
+    single_cut$min_pts <- NA
+    single_cut$n <- NA
+    single_cut$num_noise <- NA
+    single_cut$cl <- NA
+    single_cut$num_cl <- NA
+    single_cut$val_index <- NA
+    single_cut$dbcv <- NA
   } else {
-    opt_horiz_cut <- horiz_cuts %>% slice_max(DBCV, with_ties = F)
-    opt_cut$cl <- opt_horiz_cut$Cut[[1]]
-    opt_cut$num_cl <- opt_horiz_cut$Num_cl
-    opt_cut$val_index <- opt_horiz_cut$Val_index[[1]]
-    opt_cut$dbcv <- opt_horiz_cut$DBCV
+    single_cut$min_pts <- 1
+    single_cut$n <- num_objs
+    opt_cut <- opt1$cut[[1]]
+    single_cut$num_noise <- sum(opt_cut == 0)
+    single_cut$cl <- opt_cut
+    single_cut$num_cl <- opt_cut[opt_cut != 0] %>% n_distinct
+    single_cut$val_index <- opt1$val_index[[1]]
+    single_cut$dbcv <- opt1$dbcv
   }
-
+  
+  # # Apply FOSC to single linkage hierarchy.
+  # # Compute DBCV for each partition.
+  # single_foscs <- tibble(min_pts = as.integer(min_pts)) %>%
+  #   mutate(cl = map(min_pts, ~ extractFOSC(single_hier, minPts = .x)$cluster)) %>%
+  #   mutate(val_index = map(cl, ~ get_dbcv(dissim_matr, d, .x))) %>%
+  #   mutate(dbcv = map_dbl(val_index, ~ {
+  #     if (is.null(.x)) {
+  #       NA
+  #     } else {
+  #       sum(.x$val * .x$size_frac) 
+  #     }
+  #   }))
+  # 
+  # # Select partition with highest DBCV value.
+  # opt2 <- single_foscs %>% slice_max(dbcv, with_ties = F)
+  # 
+  # # Process optimal partition.
+  # # Handle the case where DBCV could not be computed for any partition.
+  # single_fosc <- NULL
+  # if(is.na(opt2$dbcv)) {
+  #   single_fosc$min_pts <- NA
+  #   single_fosc$n <- NA
+  #   single_fosc$num_noise <- NA
+  #   single_fosc$cl <- NA
+  #   single_fosc$num_cl <- NA
+  #   single_fosc$val_index <- NA
+  #   single_fosc$dbcv <- NA
+  # } else {
+  #   opt_cl <- opt2$cl[[1]]
+  #   single_fosc$min_pts <- opt2$min_pts
+  #   single_fosc$n <- num_objs
+  #   single_fosc$num_noise <- sum(opt_cl == 0)
+  #   single_fosc$cl <- opt_cl
+  #   single_fosc$num_cl <- opt_cl[opt_cl != 0] %>% n_distinct
+  #   single_fosc$val_index <- opt2$val_index[[1]]
+  #   single_fosc$dbcv <- opt2$dbcv
+  # }
+  
+  # HDBSCAN models.
+  hdbscan_mods <- map(min_pts, ~ hdbscan(dist_obj, .x))
+  
+  # Cuts for each HDBSCAN model
+  hdbscan_cuts <- NULL
+  for (mod in hdbscan_mods) {
+    eps_vals <- sort(mod$hc$height, decreasing = T) + .Machine$double.eps
+    cuts <- tibble(min_pts = mod$minPts, eps = eps_vals) %>%
+      mutate(cut = map(eps, ~ cut_tree(mod$hc, .x, kNNdist(dist_obj, mod$minPts - 1)) %>% as.integer)) %>%
+      mutate(num_cl = map_int(cut, ~ n_distinct(.x[.x != 0]))) %>%
+      filter(num_cl > 1)
+    hdbscan_cuts <- bind_rows(hdbscan_cuts, cuts)
+  }
+  
+  # Compute DBCV for each HDBSCAN cut.
+  hdbscan_cuts <- hdbscan_cuts %>%
+    mutate(val_index = map(cut, ~ get_dbcv(dissim_matr, d, .x))) %>%
+    mutate(dbcv = map_dbl(val_index, ~ {
+      if (is.null(.x)) {
+        NA
+      } else {
+        sum(.x$val * .x$size_frac) 
+      }
+    }))
+  
+  # Select partition with highest DBCV value.
+  opt3 <- hdbscan_cuts %>% slice_max(dbcv, with_ties = F)
+  
+  # Process optimal cut.
+  # Handle the case where DBCV could not be computed for any cut.
+  hdbscan_cut <- NULL
+  if (is.na(opt3$dbcv)) {
+    hdbscan_cut$min_pts <- NA
+    hdbscan_cut$n <- NA
+    hdbscan_cut$num_noise <- NA
+    hdbscan_cut$cl <- NA
+    hdbscan_cut$num_cl <- NA
+    hdbscan_cut$val_index <- NA
+    hdbscan_cut$dbcv <- NA
+  } else {
+    opt_cut <- opt3$cut[[1]]
+    hdbscan_cut$min_pts <- opt3$min_pts
+    hdbscan_cut$n <- num_objs
+    hdbscan_cut$num_noise <- sum(opt_cut == 0)
+    hdbscan_cut$cl <- opt_cut
+    hdbscan_cut$num_cl <- opt_cut[opt_cut != 0] %>% n_distinct
+    hdbscan_cut$val_index <- opt3$val_index[[1]]
+    hdbscan_cut$dbcv <- opt3$dbcv
+  }
+  
+  # Apply FOSC to each HDBSCAN hierarchy
+  hdbscan_foscs <- tibble(
+    min_pts = map_int(hdbscan_mods, ~ .x$minPts %>% as.integer),
+    cl = map(hdbscan_mods, ~ .x$cluster %>% as.integer)
+  ) %>%
+    mutate(val_index = map(cl, ~ get_dbcv(dissim_matr, d, .x))) %>%
+    mutate(dbcv = map_dbl(val_index, ~ {
+      if (is.null(.x)) {
+        NA
+      } else {
+        sum(.x$val * .x$size_frac) 
+      }
+    }))
+  
+  # Select partition with highest DBCV value.
+  opt4 <- hdbscan_foscs %>% slice_max(dbcv, with_ties = F)
+  
+  # Process optimal partition.
+  # Handle the case where DBCV could not be computed for any partition.
+  hdbscan_fosc <- NULL
+  if(is.na(opt4$dbcv)) {
+    hdbscan_fosc$min_pts <- NA
+    hdbscan_fosc$n <- NA
+    hdbscan_fosc$num_noise <- NA
+    hdbscan_fosc$cl <- NA
+    hdbscan_fosc$num_cl <- NA
+    hdbscan_fosc$val_index <- NA
+    hdbscan_fosc$dbcv <- NA
+  } else {
+    opt_cl <- opt4$cl[[1]]
+    hdbscan_fosc$min_pts <- opt4$min_pts
+    hdbscan_fosc$n <- num_objs
+    hdbscan_fosc$num_noise <- sum(opt_cl == 0)
+    hdbscan_fosc$cl <- opt_cl
+    hdbscan_fosc$num_cl <- opt_cl[opt_cl != 0] %>% n_distinct
+    hdbscan_fosc$val_index <- opt4$val_index[[1]]
+    hdbscan_fosc$dbcv <- opt4$dbcv
+  }
+  
+  # return value
   ret <- NULL
-  ret$FOSC <- fosc_cut
-  ret$HORIZ <- opt_cut
+  ret$single_cut <- single_cut
+  ret$hdbscan_cut <- hdbscan_cut
+  if(is.na(single_cut$dbcv)) {
+    ret$cut <- hdbscan_cut 
+  } else if(is.na(hdbscan_cut$dbcv)) {
+    ret$cut <- single_cut
+  } else {
+    if (single_cut$dbcv >= hdbscan_cut$dbcv) {
+      ret$cut <- single_cut
+    } else {
+      ret$cut <- hdbscan_cut
+    }
+  }
+  ret$fosc <- hdbscan_fosc
   
   return(ret)
 }
@@ -181,8 +316,10 @@ run_single_linkage <- function(dist_obj, d, min_pts) {
   
   fosc_cut <- NULL
   fosc_cut$min_pts <- min_pts
+  fosc_cut$n <- nrow(dissim_matr)
   fosc_cut$cl <- h_cl
   fosc_cut$num_cl <- h_cl[h_cl != 0] %>% n_distinct
+  fosc_cut$num_noise <- sum(h_cl == 0)
   fosc_cut$val_index <- h_val_index
   fosc_cut$dbcv <- h_dbcv
   
@@ -204,16 +341,20 @@ run_single_linkage <- function(dist_obj, d, min_pts) {
   
   opt_cut <- NULL
   opt_cut$min_pts <- min_pts
+  opt_cut$n <- nrow(dissim_matr)
   # If all horizontal cuts cannot be evaluated by DBCV
   if (all(map_lgl(horiz_cuts$DBCV, is.na))) {
     opt_cut$cl <- NA
     opt_cut$num_cl <- NA
+    opt_cut$num_noise <- NA
     opt_cut$val_index <- NA
     opt_cut$dbcv <- NA
   } else {
     opt_horiz_cut <- horiz_cuts %>% slice_max(DBCV, with_ties = F)
-    opt_cut$cl <- opt_horiz_cut$Cut[[1]]
+    opt_cl <- opt_horiz_cut$Cut[[1]]
+    opt_cut$cl <- opt_cl
     opt_cut$num_cl <- opt_horiz_cut$Num_cl
+    opt_cut$num_noise <- sum(opt_cl == 0)
     opt_cut$val_index <- opt_horiz_cut$Val_index[[1]]
     opt_cut$dbcv <- opt_horiz_cut$DBCV
   }

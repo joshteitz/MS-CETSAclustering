@@ -95,14 +95,14 @@ get_dbcv <- function(dissim_matr, d, lbls) {
   lbls <- lbls[lbls != 0]
   
   if (length(lbls) == 0) {
-    print("Every point is noise!")
+    # print("Every point is noise!")
     return(NULL)
   }
   
   # If there is a singleton cluster, the object's all-points-core-distance
   # is undefined. Therefore, return NULL
   if (1 %in% table(lbls)) {
-    print("Singleton cluster!")
+    # print("Singleton cluster!")
     return(NULL)
   }
   
@@ -186,8 +186,8 @@ density_sparseness <- function(mrd_graph, cl, labels) {
   internal_es <- map_lgl(1:nrow(es), ~ getElement(degs, es[.x, 1]) != 1 && getElement(degs, es[.x, 2]) != 1)
   
   if (!any(internal_es)) {
-    print(paste("Density sparseness of cluster", cl, "cannot be computed because the MST of cluster",
-                cl, "does not have internal edges."))
+    # print(paste("Density sparseness of cluster", cl, "cannot be computed because the MST of cluster",
+    #             cl, "does not have internal edges."))
     return(NA)
   } else {
     max_internal_e <- es[internal_es,]$weight %>% max
@@ -208,14 +208,14 @@ density_separation <- function(mrd, mrd_graph, cl1, cl2, labels) {
   inodes2 <- names(which(degs2 != 1)) %>% as.integer
   
   if (length(inodes1) == 0) {
-    print(paste("Density separation between clusters", cl1, "and", cl2,
-                "cannot be computed because the MST of", cl1, "does not have any internal nodes."))
+    # print(paste("Density separation between clusters", cl1, "and", cl2,
+    #             "cannot be computed because the MST of", cl1, "does not have any internal nodes."))
     return(NA)
   }
   
   if (length(inodes2) == 0) {
-    print(paste("Density separation between clusters", cl1, "and", cl2,
-                "cannot be computed because the MST of", cl2, "does not have any internal nodes."))
+    # print(paste("Density separation between clusters", cl1, "and", cl2,
+    #             "cannot be computed because the MST of", cl2, "does not have any internal nodes."))
     return(NA)
   }
   

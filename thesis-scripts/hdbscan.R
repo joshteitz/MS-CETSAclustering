@@ -90,370 +90,432 @@ cdata_samples <- cdata_samples %>%
 ## Results for HDBSCAN                                                                        ##
 ################################################################################################
 
-set.seed(27)
-print("HDBSCAN clusterings")
+MIN_PTS = c(3,5,9)
+
+print("HDBSCAN, Euclidean distance")
 pb <- progress_bar$new(total = nrow(cdata_samples))
-pb1 <- progress_bar$new(total = nrow(cdata_samples))
-pb2 <- progress_bar$new(total = nrow(cdata_samples))
-print("HDBSCAN clusterings, minPts = 3")
 results <- cdata_samples %>%
-  mutate(HDBSCAN3 = map2(Sample, Num, ~ {
+  mutate(Eucl = map(Sample, ~ {
     pb$tick();
     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
     dist_obj <- dist(ds);
-    d <- 9;
-    min_pts <- 3;
-    run_hdbscan(dist_obj, d, min_pts)
-  })) %>%
-  mutate(HDBSCAN3_cor = map2(Sample, Num, ~ {
-    pb1$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
-    dist_obj <- dist(ds, pear_dissim);
-    d <- 9;
-    min_pts <- 3;
-    run_hdbscan(dist_obj, d, min_pts)
-  })) %>%
-  mutate(HDBSCAN3_p = map2(Sample, Num, ~ {
-    pb2$tick();
-    ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
-    ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
-    dist_obj <- dist(ds);
-    d <- 3;
-    min_pts <- 3;
-    run_hdbscan(dist_obj, d, min_pts)
+    d <- ncol(ds);
+    run_hdbscan(dist_obj, d, MIN_PTS)
   }))
 
+print("HDBSCAN, Pearson correlation")
 pb <- progress_bar$new(total = nrow(results))
-pb1 <- progress_bar$new(total = nrow(results))
-pb2 <- progress_bar$new(total = nrow(results))
-print("HDBSCAN clusterings, minPts = 5")
 results <- results %>%
-  mutate(HDBSCAN5 = map2(Sample, Num, ~ {
+  mutate(Pear = map(Sample, ~ {
     pb$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    dist_obj <- dist(ds);
-    d <- 9;
-    min_pts <- 5;
-    run_hdbscan(dist_obj, d, min_pts)
-  })) %>%
-  mutate(HDBSCAN5_cor = map2(Sample, Num, ~ {
-    pb1$tick();
     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
     dist_obj <- dist(ds, pear_dissim);
-    d <- 9;
-    min_pts <- 5;
-    run_hdbscan(dist_obj, d, min_pts)
-  })) %>%
-  mutate(HDBSCAN5_p = map2(Sample, Num, ~ {
-    pb2$tick();
-    ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
-    ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
-    dist_obj <- dist(ds);
-    d <- 3;
-    min_pts <- 5;
-    run_hdbscan(dist_obj, d, min_pts)
+    d <- ncol(ds);
+    run_hdbscan(dist_obj, d, MIN_PTS)
   }))
 
+print("HDBSCAN, Parametric Euclidean Distance")
 pb <- progress_bar$new(total = nrow(results))
-pb1 <- progress_bar$new(total = nrow(results))
-pb2 <- progress_bar$new(total = nrow(results))
-print("HDBSCAN clusterings, minPts = 10")
 results <- results %>%
-  mutate(HDBSCAN10 = map2(Sample, Num, ~ {
+  mutate(Eucl_params = map(Sample, ~ {
     pb$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    dist_obj <- dist(ds);
-    d <- 9;
-    min_pts <- 10;
-    run_hdbscan(dist_obj, d, min_pts)
-  })) %>%
-  mutate(HDBSCAN10_cor = map2(Sample, Num, ~ {
-    pb1$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
-    dist_obj <- dist(ds, pear_dissim);
-    d <- 9;
-    min_pts <- 10;
-    run_hdbscan(dist_obj, d, min_pts)
-  })) %>%
-  mutate(HDBSCAN10_p = map2(Sample, Num, ~ {
-    pb2$tick();
     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
-    ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
     dist_obj <- dist(ds);
-    d <- 3;
-    min_pts <- 10;
-    run_hdbscan(dist_obj, d, min_pts)
+    d <- ncol(ds);
+    run_hdbscan(dist_obj, d, MIN_PTS)
   }))
-
-results <- results %>%
-  mutate(HDBSCAN_FOSC = pmap(list(HDBSCAN3, HDBSCAN5, HDBSCAN10), ~ {
-    res1 <- ..1$FOSC;
-    res2 <- ..2$FOSC;
-    res3 <- ..3$FOSC;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      best_cl = 1
-    }
-    res[[best_cl]]
-  })) %>%
-  mutate(HDBSCAN_cor_FOSC = pmap(list(HDBSCAN3_cor, HDBSCAN5_cor, HDBSCAN10_cor), ~ {
-    res1 <- ..1$FOSC;
-    res2 <- ..2$FOSC;
-    res3 <- ..3$FOSC;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      best_cl = 1
-    }
-    res[[best_cl]]
-  })) %>% 
-  mutate(HDBSCAN_p_FOSC = pmap(list(HDBSCAN3_p, HDBSCAN5_p, HDBSCAN10_p), ~ {
-    res1 <- ..1$FOSC;
-    res2 <- ..2$FOSC;
-    res3 <- ..3$FOSC;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      best_cl = 1
-    }
-    res[[best_cl]]
-  })) %>%
-  mutate(HDBSCAN_DBCV = pmap(list(HDBSCAN3, HDBSCAN5, HDBSCAN10, HDBSCAN_FOSC), ~ {
-    res1 <- ..1$HORIZ;
-    res2 <- ..2$HORIZ;
-    res3 <- ..3$HORIZ;
-    res4 <- ..4;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      res4
-    } else {
-      res[[best_cl]]
-    }
-  })) %>%
-  mutate(HDBSCAN_cor_DBCV = pmap(list(HDBSCAN3_cor, HDBSCAN5_cor, HDBSCAN10_cor, HDBSCAN_cor_FOSC), ~ {
-    res1 <- ..1$HORIZ;
-    res2 <- ..2$HORIZ;
-    res3 <- ..3$HORIZ;
-    res4 <- ..4;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      res4
-    } else {
-      res[[best_cl]]
-    }
-  })) %>%
-  mutate(HDBSCAN_p_DBCV = pmap(list(HDBSCAN3_p, HDBSCAN5_p, HDBSCAN10_p, HDBSCAN_p_FOSC), ~ {
-    res1 <- ..1$HORIZ;
-    res2 <- ..2$HORIZ;
-    res3 <- ..3$HORIZ;
-    res4 <- ..4;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      res4
-    } else {
-      res[[best_cl]]
-    }
-  })) %>%
-  select(Num, Seed, Sample, starts_with("HDBSCAN_"))
 
 write_rds(results, here("thesis-scripts", "results", "hdbscan.rds"))
 
-################################################################################################
-## Results for Single Linkage                                                                 ##
-################################################################################################
+# pb <- progress_bar$new(total = 15) #
+# results <- results %>%
+#   mutate(Pear = map(Sample, ~ {
+#     pb$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
+#     dist_obj <- dist(ds, pear_dissim);
+#     d <- ncol(ds);
+#     run_hdbscan(dist_obj, d, MIN_PTS)
+#   }))
+# 
+# pb <- progress_bar$new(total = nrow(cdata_samples))
+# pb1 <- progress_bar$new(total = nrow(cdata_samples))
+# pb2 <- progress_bar$new(total = nrow(cdata_samples))
+# print("HDBSCAN clusterings, minPts = 3")
+# results <- cdata_samples %>%
+#   mutate(HDBSCAN3 = map2(Sample, Num, ~ {
+#     pb$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     dist_obj <- dist(ds);
+#     d <- 9;
+#     min_pts <- 3;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(HDBSCAN3_cor = map2(Sample, Num, ~ {
+#     pb1$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
+#     dist_obj <- dist(ds, pear_dissim);
+#     d <- 9;
+#     min_pts <- 3;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(HDBSCAN3_p = map2(Sample, Num, ~ {
+#     pb2$tick();
+#     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
+#     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
+#     dist_obj <- dist(ds);
+#     d <- 3;
+#     min_pts <- 3;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   }))
+# 
+# pb <- progress_bar$new(total = nrow(results))
+# pb1 <- progress_bar$new(total = nrow(results))
+# pb2 <- progress_bar$new(total = nrow(results))
+# print("HDBSCAN clusterings, minPts = 5")
+# results <- results %>%
+#   mutate(HDBSCAN5 = map2(Sample, Num, ~ {
+#     pb$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     dist_obj <- dist(ds);
+#     d <- 9;
+#     min_pts <- 5;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(HDBSCAN5_cor = map2(Sample, Num, ~ {
+#     pb1$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
+#     dist_obj <- dist(ds, pear_dissim);
+#     d <- 9;
+#     min_pts <- 5;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(HDBSCAN5_p = map2(Sample, Num, ~ {
+#     pb2$tick();
+#     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
+#     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
+#     dist_obj <- dist(ds);
+#     d <- 3;
+#     min_pts <- 5;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   }))
+# 
+# pb <- progress_bar$new(total = nrow(results))
+# pb1 <- progress_bar$new(total = nrow(results))
+# pb2 <- progress_bar$new(total = nrow(results))
+# print("HDBSCAN clusterings, minPts = 10")
+# results <- results %>%
+#   mutate(HDBSCAN10 = map2(Sample, Num, ~ {
+#     pb$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     dist_obj <- dist(ds);
+#     d <- 9;
+#     min_pts <- 10;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(HDBSCAN10_cor = map2(Sample, Num, ~ {
+#     pb1$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
+#     dist_obj <- dist(ds, pear_dissim);
+#     d <- 9;
+#     min_pts <- 10;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(HDBSCAN10_p = map2(Sample, Num, ~ {
+#     pb2$tick();
+#     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
+#     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
+#     dist_obj <- dist(ds);
+#     d <- 3;
+#     min_pts <- 10;
+#     run_hdbscan(dist_obj, d, min_pts)
+#   }))
+# 
+# results <- results %>%
+#   mutate(HDBSCAN_FOSC = pmap(list(HDBSCAN3, HDBSCAN5, HDBSCAN10), ~ {
+#     res1 <- ..1$FOSC;
+#     res2 <- ..2$FOSC;
+#     res3 <- ..3$FOSC;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       best_cl = 1
+#     }
+#     res[[best_cl]]
+#   })) %>%
+#   mutate(HDBSCAN_cor_FOSC = pmap(list(HDBSCAN3_cor, HDBSCAN5_cor, HDBSCAN10_cor), ~ {
+#     res1 <- ..1$FOSC;
+#     res2 <- ..2$FOSC;
+#     res3 <- ..3$FOSC;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       best_cl = 1
+#     }
+#     res[[best_cl]]
+#   })) %>% 
+#   mutate(HDBSCAN_p_FOSC = pmap(list(HDBSCAN3_p, HDBSCAN5_p, HDBSCAN10_p), ~ {
+#     res1 <- ..1$FOSC;
+#     res2 <- ..2$FOSC;
+#     res3 <- ..3$FOSC;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       best_cl = 1
+#     }
+#     res[[best_cl]]
+#   })) %>%
+#   mutate(HDBSCAN_DBCV = pmap(list(HDBSCAN3, HDBSCAN5, HDBSCAN10, HDBSCAN_FOSC), ~ {
+#     res1 <- ..1$HORIZ;
+#     res2 <- ..2$HORIZ;
+#     res3 <- ..3$HORIZ;
+#     res4 <- ..4;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       res4
+#     } else {
+#       res[[best_cl]]
+#     }
+#   })) %>%
+#   mutate(HDBSCAN_cor_DBCV = pmap(list(HDBSCAN3_cor, HDBSCAN5_cor, HDBSCAN10_cor, HDBSCAN_cor_FOSC), ~ {
+#     res1 <- ..1$HORIZ;
+#     res2 <- ..2$HORIZ;
+#     res3 <- ..3$HORIZ;
+#     res4 <- ..4;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       res4
+#     } else {
+#       res[[best_cl]]
+#     }
+#   })) %>%
+#   mutate(HDBSCAN_p_DBCV = pmap(list(HDBSCAN3_p, HDBSCAN5_p, HDBSCAN10_p, HDBSCAN_p_FOSC), ~ {
+#     res1 <- ..1$HORIZ;
+#     res2 <- ..2$HORIZ;
+#     res3 <- ..3$HORIZ;
+#     res4 <- ..4;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       res4
+#     } else {
+#       res[[best_cl]]
+#     }
+#   })) %>%
+#   select(Num, Seed, Sample, starts_with("HDBSCAN_"))
+# 
+# write_rds(results, here("thesis-scripts", "results", "hdbscan.rds"))
+# 
+# ################################################################################################
+# ## Results for Single Linkage                                                                 ##
+# ################################################################################################
+# 
+# set.seed(27)
+# print("Single linkage clusterings")
+# pb <- progress_bar$new(total = nrow(cdata_samples))
+# pb1 <- progress_bar$new(total = nrow(cdata_samples))
+# pb2 <- progress_bar$new(total = nrow(cdata_samples))
+# print("Single linkage, minPts = 3")
+# results1 <- cdata_samples %>%
+#   mutate(Single3 = map2(Sample, Num, ~ {
+#     pb$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     dist_obj <- dist(ds);
+#     d <- 9;
+#     min_pts <- 3;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(Single3_cor = map2(Sample, Num, ~ {
+#     pb1$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
+#     dist_obj <- dist(ds, pear_dissim);
+#     d <- 9;
+#     min_pts <- 3;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(Single3_p = map2(Sample, Num, ~ {
+#     pb2$tick();
+#     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
+#     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
+#     dist_obj <- dist(ds);
+#     d <- 3;
+#     min_pts <- 3;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   }))
+# 
+# pb <- progress_bar$new(total = nrow(results1))
+# pb1 <- progress_bar$new(total = nrow(results1))
+# pb2 <- progress_bar$new(total = nrow(results1))
+# print("Single linkage, minPts = 5")
+# results1 <- results1 %>%
+#   mutate(Single5 = map2(Sample, Num, ~ {
+#     pb$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     dist_obj <- dist(ds);
+#     d <- 9;
+#     min_pts <- 5;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(Single5_cor = map2(Sample, Num, ~ {
+#     pb1$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
+#     dist_obj <- dist(ds, pear_dissim);
+#     d <- 9;
+#     min_pts <- 5;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(Single5_p = map2(Sample, Num, ~ {
+#     pb2$tick();
+#     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
+#     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
+#     dist_obj <- dist(ds);
+#     d <- 3;
+#     min_pts <- 5;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   }))
+# 
+# pb <- progress_bar$new(total = nrow(results1))
+# pb1 <- progress_bar$new(total = nrow(results1))
+# pb2 <- progress_bar$new(total = nrow(results1))
+# print("Single linkage, minPts = 10")
+# results1 <- results1 %>%
+#   mutate(Single10 = map2(Sample, Num, ~ {
+#     pb$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     dist_obj <- dist(ds);
+#     d <- 9;
+#     min_pts <- 10;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(Single10_cor = map2(Sample, Num, ~ {
+#     pb1$tick();
+#     ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
+#     pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
+#     dist_obj <- dist(ds, pear_dissim);
+#     d <- 9;
+#     min_pts <- 10;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   })) %>%
+#   mutate(Single10_p = map2(Sample, Num, ~ {
+#     pb2$tick();
+#     ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
+#     ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
+#     dist_obj <- dist(ds);
+#     d <- 3;
+#     min_pts <- 10;
+#     run_single_linkage(dist_obj, d, min_pts)
+#   }))
+# 
+# results1 <- results1 %>%
+#   mutate(Single_FOSC = pmap(list(Single3, Single5, Single10), ~ {
+#     res1 <- ..1$FOSC;
+#     res2 <- ..2$FOSC;
+#     res3 <- ..3$FOSC;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       best_cl = 1
+#     }
+#     res[[best_cl]]
+#   })) %>%
+#   mutate(Single_cor_FOSC = pmap(list(Single3_cor, Single5_cor, Single10_cor), ~ {
+#     res1 <- ..1$FOSC;
+#     res2 <- ..2$FOSC;
+#     res3 <- ..3$FOSC;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       best_cl = 1
+#     }
+#     res[[best_cl]]
+#   })) %>% 
+#   mutate(Single_p_FOSC = pmap(list(Single3_p, Single5_p, Single10_p), ~ {
+#     res1 <- ..1$FOSC;
+#     res2 <- ..2$FOSC;
+#     res3 <- ..3$FOSC;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       best_cl = 1
+#     }
+#     res[[best_cl]]
+#   })) %>%
+#   mutate(Single_DBCV = pmap(list(Single3, Single5, Single10, Single_FOSC), ~ {
+#     res1 <- ..1$HORIZ;
+#     res2 <- ..2$HORIZ;
+#     res3 <- ..3$HORIZ;
+#     res4 <- ..4;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       res4
+#     } else {
+#       res[[best_cl]]
+#     }
+#   })) %>%
+#   mutate(Single_cor_DBCV = pmap(list(Single3_cor, Single5_cor, Single10_cor, Single_cor_FOSC), ~ {
+#     res1 <- ..1$HORIZ;
+#     res2 <- ..2$HORIZ;
+#     res3 <- ..3$HORIZ;
+#     res4 <- ..4;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       res4
+#     } else {
+#       res[[best_cl]]
+#     }
+#   })) %>%
+#   mutate(Single_p_DBCV = pmap(list(Single3_p, Single5_p, Single10_p, Single_p_FOSC), ~ {
+#     res1 <- ..1$HORIZ;
+#     res2 <- ..2$HORIZ;
+#     res3 <- ..3$HORIZ;
+#     res4 <- ..4;
+#     res <- list(res1, res2, res3);
+#     dbcv <- map_dbl(res, ~ .x$dbcv);
+#     best_cl <- which.max(dbcv);
+#     if (length(best_cl) == 0) {
+#       res4
+#     } else {
+#       res[[best_cl]]
+#     }
+#   })) %>% select(Num, Seed, Sample, starts_with("Single_"))
+# 
+# write_rds(results1, here("thesis-scripts", "results", "single_linkage.rds"))
+# 
+# 
+# i = 535
+# ds <- cdata_samples$Sample[[i]]
+# ds
+# ds <- ds %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein)
+# dist_obj <- dist(ds)
+# d <- ncol(ds)
+# min_pts <- c(3, 5, 10)
+# res <- run_hdbscan(dist_obj, d, min_pts)
+# res$single_cut
+# res$hdbscan_cut
+# res$cut
+# res$fosc
 
-set.seed(27)
-print("Single linkage clusterings")
-pb <- progress_bar$new(total = nrow(cdata_samples))
-pb1 <- progress_bar$new(total = nrow(cdata_samples))
-pb2 <- progress_bar$new(total = nrow(cdata_samples))
-print("Single linkage, minPts = 3")
-results1 <- cdata_samples %>%
-  mutate(Single3 = map2(Sample, Num, ~ {
-    pb$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    dist_obj <- dist(ds);
-    d <- 9;
-    min_pts <- 3;
-    run_single_linkage(dist_obj, d, min_pts)
-  })) %>%
-  mutate(Single3_cor = map2(Sample, Num, ~ {
-    pb1$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
-    dist_obj <- dist(ds, pear_dissim);
-    d <- 9;
-    min_pts <- 3;
-    run_single_linkage(dist_obj, d, min_pts)
-  })) %>%
-  mutate(Single3_p = map2(Sample, Num, ~ {
-    pb2$tick();
-    ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
-    ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
-    dist_obj <- dist(ds);
-    d <- 3;
-    min_pts <- 3;
-    run_single_linkage(dist_obj, d, min_pts)
-  }))
-
-pb <- progress_bar$new(total = nrow(results1))
-pb1 <- progress_bar$new(total = nrow(results1))
-pb2 <- progress_bar$new(total = nrow(results1))
-print("Single linkage, minPts = 5")
-results1 <- results1 %>%
-  mutate(Single5 = map2(Sample, Num, ~ {
-    pb$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    dist_obj <- dist(ds);
-    d <- 9;
-    min_pts <- 5;
-    run_single_linkage(dist_obj, d, min_pts)
-  })) %>%
-  mutate(Single5_cor = map2(Sample, Num, ~ {
-    pb1$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
-    dist_obj <- dist(ds, pear_dissim);
-    d <- 9;
-    min_pts <- 5;
-    run_single_linkage(dist_obj, d, min_pts)
-  })) %>%
-  mutate(Single5_p = map2(Sample, Num, ~ {
-    pb2$tick();
-    ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
-    ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
-    dist_obj <- dist(ds);
-    d <- 3;
-    min_pts <- 5;
-    run_single_linkage(dist_obj, d, min_pts)
-  }))
-
-pb <- progress_bar$new(total = nrow(results1))
-pb1 <- progress_bar$new(total = nrow(results1))
-pb2 <- progress_bar$new(total = nrow(results1))
-print("Single linkage, minPts = 10")
-results1 <- results1 %>%
-  mutate(Single10 = map2(Sample, Num, ~ {
-    pb$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    dist_obj <- dist(ds);
-    d <- 9;
-    min_pts <- 10;
-    run_single_linkage(dist_obj, d, min_pts)
-  })) %>%
-  mutate(Single10_cor = map2(Sample, Num, ~ {
-    pb1$tick();
-    ds <- .x %>% inner_join(mdata, by = "Protein") %>% select(-Complex, -Protein, -T37);
-    pear_dissim <- function(x1, x2) (1 - cor(x1, x2)) / 2;
-    dist_obj <- dist(ds, pear_dissim);
-    d <- 9;
-    min_pts <- 10;
-    run_single_linkage(dist_obj, d, min_pts)
-  })) %>%
-  mutate(Single10_p = map2(Sample, Num, ~ {
-    pb2$tick();
-    ds <- .x %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein);
-    ds <- make_unit_var(ds, numeric_cols = c(Param_b, Param_c, Param_e));
-    dist_obj <- dist(ds);
-    d <- 3;
-    min_pts <- 10;
-    run_single_linkage(dist_obj, d, min_pts)
-  }))
-
-results1 <- results1 %>%
-  mutate(Single_FOSC = pmap(list(Single3, Single5, Single10), ~ {
-    res1 <- ..1$FOSC;
-    res2 <- ..2$FOSC;
-    res3 <- ..3$FOSC;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      best_cl = 1
-    }
-    res[[best_cl]]
-  })) %>%
-  mutate(Single_cor_FOSC = pmap(list(Single3_cor, Single5_cor, Single10_cor), ~ {
-    res1 <- ..1$FOSC;
-    res2 <- ..2$FOSC;
-    res3 <- ..3$FOSC;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      best_cl = 1
-    }
-    res[[best_cl]]
-  })) %>% 
-  mutate(Single_p_FOSC = pmap(list(Single3_p, Single5_p, Single10_p), ~ {
-    res1 <- ..1$FOSC;
-    res2 <- ..2$FOSC;
-    res3 <- ..3$FOSC;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      best_cl = 1
-    }
-    res[[best_cl]]
-  })) %>%
-  mutate(Single_DBCV = pmap(list(Single3, Single5, Single10, Single_FOSC), ~ {
-    res1 <- ..1$HORIZ;
-    res2 <- ..2$HORIZ;
-    res3 <- ..3$HORIZ;
-    res4 <- ..4;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      res4
-    } else {
-      res[[best_cl]]
-    }
-  })) %>%
-  mutate(Single_cor_DBCV = pmap(list(Single3_cor, Single5_cor, Single10_cor, Single_cor_FOSC), ~ {
-    res1 <- ..1$HORIZ;
-    res2 <- ..2$HORIZ;
-    res3 <- ..3$HORIZ;
-    res4 <- ..4;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      res4
-    } else {
-      res[[best_cl]]
-    }
-  })) %>%
-  mutate(Single_p_DBCV = pmap(list(Single3_p, Single5_p, Single10_p, Single_p_FOSC), ~ {
-    res1 <- ..1$HORIZ;
-    res2 <- ..2$HORIZ;
-    res3 <- ..3$HORIZ;
-    res4 <- ..4;
-    res <- list(res1, res2, res3);
-    dbcv <- map_dbl(res, ~ .x$dbcv);
-    best_cl <- which.max(dbcv);
-    if (length(best_cl) == 0) {
-      res4
-    } else {
-      res[[best_cl]]
-    }
-  })) %>% select(Num, Seed, Sample, starts_with("Single_"))
-
-write_rds(results1, here("thesis-scripts", "results", "single_linkage.rds"))
 
 # i = 4
 # set.seed(27)
