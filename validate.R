@@ -37,7 +37,14 @@ get_sils_mahal <- function(lbls, ds, sigmas) {
     filter(x != y) %>%
     mutate(Cluster = map_int(x, ~ lbls[.x] %>% as.integer)) %>%
     mutate(Neighbor = map_int(y, ~ lbls[.x] %>% as.integer)) %>%
-    mutate(Mahal = map2_dbl(x, y, ~ mahalanobis(ds[.x,], ds[.y,], cov = sigmas[[lbls[.y]]]) %>% sqrt))
+    mutate(Mahal = map2_dbl(x, y, ~ {
+      tryCatch(
+        mahalanobis(ds[.x,], ds[.y,], cov = sigmas[[lbls[.y]]]) %>% sqrt,
+        error = function(e) {
+          NA
+        }
+      )
+    }))
   
   # For each point, compute the mean distance between the point and every cluster.
   mean_dists <- dists %>%

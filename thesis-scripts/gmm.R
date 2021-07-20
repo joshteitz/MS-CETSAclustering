@@ -166,6 +166,14 @@ results <- results %>%
 
 write_rds(results, here("thesis-scripts", "results", "gmm.rds"))
 
+# gmm <- (results %>% filter(Num == 3 & Seed == "874"))$GMM_p[[1]]
+# smpl <- (results %>% filter(Num == 3 & Seed == "874"))$Sample[[1]]
+# 
+# lbls <- gmm$cl
+# ds <- smpl %>% inner_join(mparams, by = "Protein") %>% select(-Complex, -Protein)
+# ds <- make_unit_var(ds, c(Param_b, Param_c, Param_e))
+# sigmas <- gmm$sigmas
+
 # # For each sample, run GMMs.
 # pb <- progress_bar$new(total = nrow(cdata_samples))
 # results <- cdata_samples %>% slice_sample(n = 10) %>%
