@@ -90,7 +90,7 @@ cdata_samples <- cdata_samples %>%
 ## Results for HDBSCAN                                                                        ##
 ################################################################################################
 
-MIN_PTS = c(3,5,9)
+MIN_PTS = c(3,5,10)
 
 print("HDBSCAN, Euclidean distance")
 pb <- progress_bar$new(total = nrow(cdata_samples))
@@ -128,6 +128,7 @@ results <- results %>%
   }))
 
 write_rds(results, here("thesis-scripts", "results", "hdbscan.rds"))
+
 
 # pb <- progress_bar$new(total = 15) #
 # results <- results %>%

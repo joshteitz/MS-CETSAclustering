@@ -201,7 +201,7 @@ density_sparseness <- function(mrd_graph, cl, labels) {
   if (!any(internal_es)) {
     # print(paste("Density sparseness of cluster", cl, "cannot be computed because the MST of cluster",
     #             cl, "does not have internal edges."))
-    return(NA)
+    max_e <- es$weight %>% max
   } else {
     max_internal_e <- es[internal_es,]$weight %>% max
     return(max_internal_e)
@@ -220,20 +220,18 @@ density_separation <- function(mrd, mrd_graph, cl1, cl2, labels) {
   inodes1 <- names(which(degs1 != 1)) %>% as.integer
   inodes2 <- names(which(degs2 != 1)) %>% as.integer
   
-  if (length(inodes1) == 0) {
+  if (length(inodes1) == 0 || length(inodes2) == 0) {
     # print(paste("Density separation between clusters", cl1, "and", cl2,
     #             "cannot be computed because the MST of", cl1, "does not have any internal nodes."))
-    return(NA)
+    dists <- expand_grid(
+      node1 = names(degs1) %>% as.integer,
+      node2 = names(degs2) %>% as.integer
+    ) %>%
+      mutate(dist = map2_dbl(node1, node2, ~ mrd[min(.x, .y), max(.x, .y)]))
+  } else {
+    dists <- expand_grid(inodes1, inodes2) %>%
+      mutate(dist = map2_dbl(inodes1, inodes2, ~ mrd[min(.x, .y), max(.x, .y)]))
   }
-  
-  if (length(inodes2) == 0) {
-    # print(paste("Density separation between clusters", cl1, "and", cl2,
-    #             "cannot be computed because the MST of", cl2, "does not have any internal nodes."))
-    return(NA)
-  }
-  
-  dists <- expand_grid(inodes1, inodes2) %>%
-    mutate(dist = map2_dbl(inodes1, inodes2, ~ mrd[min(.x, .y), max(.x, .y)]))
   
   dense_separ <- dists$dist %>% min()
   return(dense_separ)
